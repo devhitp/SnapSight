@@ -7,3 +7,16 @@ __pycache__/
 .vscode/
 .idea/
 *.log
+
+# EasyOCR / PyTorch model cache
+~/.EasyOCR/
+*.pth
+*.pt
+
+# Generated test images (never commit screenshots or temp images)
+tests/*.png
+tests/*.jpg
+tests/*.bmp
+
+# Torch hub cache
+torch_hub/

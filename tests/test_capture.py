@@ -70,15 +70,20 @@ def test_region_selector_cancel(qapp):
     emitted_rect = mock_slot.call_args[0][0]
     assert emitted_rect.isEmpty()
 
+@patch('app.ui.main_window.OCRService')
 @patch('app.capture.capture_service.CaptureService.capture_active_window')
-def test_ui_capture_window_success(mock_capture_active, qapp, qtbot):
+def test_ui_capture_window_success(mock_capture_active, mock_ocr_service_cls, qapp, qtbot):
     """Test that the main window updates UI when Capture Window is clicked and succeeds."""
+    mock_ocr = MagicMock()
+    mock_ocr.is_available = False
+    mock_ocr_service_cls.return_value = mock_ocr
+
     window = MainWindow()
     qtbot.addWidget(window)
     
     # Setup mock result
     mock_image = QImage(800, 600, QImage.Format_RGB32)
-    mock_result = CaptureResult(image=mock_image, width=800, height=600, capture_type=CaptureType.WINDOW)
+    mock_result = CaptureResult(image=mock_image, width=800, height=600, capture_type=CaptureType.WINDOW, timestamp=1234567.0)
     mock_capture_active.return_value = mock_result
     
     qtbot.mouseClick(window.btn_capture_window, Qt.LeftButton)
@@ -89,9 +94,14 @@ def test_ui_capture_window_success(mock_capture_active, qapp, qtbot):
     assert hasattr(window, 'current_pixmap')
     assert not window.current_pixmap.isNull()
 
+@patch('app.ui.main_window.OCRService')
 @patch('app.capture.capture_service.CaptureService.capture_active_window')
-def test_ui_capture_window_failure(mock_capture_active, qapp, qtbot):
+def test_ui_capture_window_failure(mock_capture_active, mock_ocr_service_cls, qapp, qtbot):
     """Test that the main window handles exceptions cleanly."""
+    mock_ocr = MagicMock()
+    mock_ocr.is_available = False
+    mock_ocr_service_cls.return_value = mock_ocr
+
     window = MainWindow()
     qtbot.addWidget(window)
     

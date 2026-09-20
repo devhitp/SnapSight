@@ -5,12 +5,15 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QPushButton, QTextEdit, QMessageBox
 )
-from PySide6.QtCore import Qt, QRect
+from PySide6.QtCore import Qt, QRect, QThread
 from PySide6.QtGui import QPixmap, QImage
 from app.runtime.device_detector import DeviceDetector
 from app.capture.capture_service import CaptureService, CaptureException
 from app.capture.models import CaptureResult, CaptureState
 from app.ui.components.region_selector import RegionSelector
+from app.ai.ocr.ocr_service import OCRService
+from app.ai.ocr.models import OCRResult
+from app.ui.workers.ocr_worker import OCRWorker
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,11 +22,14 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SnapSight")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(900, 700)
         
         self.detector = DeviceDetector()
         self.capture_service = CaptureService()
         self.capture_state = CaptureState.NONE
+        
+        # Initialize OCR service (will safely fall back if not available)
+        self.ocr_service = OCRService()
         
         # Main widget and layout
         self.central_widget = QWidget()
@@ -33,7 +39,13 @@ class MainWindow(QMainWindow):
         self.main_layout.setSpacing(15)
         
         self.setup_header()
+        
+        # Create a horizontal layout for the split view (Preview | OCR)
+        self.split_layout = QHBoxLayout()
         self.setup_screen_context()
+        self.setup_ocr_context()
+        self.main_layout.addLayout(self.split_layout, stretch=1)
+        
         self.setup_question_section()
         self.setup_footer()
 
@@ -52,12 +64,13 @@ class MainWindow(QMainWindow):
         self.main_layout.addLayout(header_layout)
 
     def setup_screen_context(self):
+        left_layout = QVBoxLayout()
+        
         # Preview Area
         self.preview_label = QLabel("No screen captured")
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setStyleSheet("background-color: #e0e0e0; border-radius: 8px; color: #555;")
         self.preview_label.setMinimumHeight(300)
-        # Allows label to resize nicely
         self.preview_label.setSizePolicy(
             self.preview_label.sizePolicy().Policy.Expanding,
             self.preview_label.sizePolicy().Policy.Expanding
@@ -80,10 +93,26 @@ class MainWindow(QMainWindow):
         buttons_layout.addWidget(self.btn_select_region)
         buttons_layout.addStretch()
         
-        self.main_layout.addWidget(self.preview_label)
-        self.main_layout.addWidget(self.metadata_label)
-        self.main_layout.addLayout(buttons_layout)
+        left_layout.addWidget(self.preview_label)
+        left_layout.addWidget(self.metadata_label)
+        left_layout.addLayout(buttons_layout)
         
+        self.split_layout.addLayout(left_layout, stretch=1)
+        
+    def setup_ocr_context(self):
+        right_layout = QVBoxLayout()
+        
+        self.ocr_status_label = QLabel("<b>OCR Status:</b> Idle")
+        
+        self.ocr_text_edit = QTextEdit()
+        self.ocr_text_edit.setReadOnly(True)
+        self.ocr_text_edit.setPlaceholderText("OCR results will appear here...")
+        
+        right_layout.addWidget(self.ocr_status_label)
+        right_layout.addWidget(self.ocr_text_edit)
+        
+        self.split_layout.addLayout(right_layout, stretch=1)
+
     def setup_question_section(self):
         label = QLabel("<b>Ask anything about this screen</b>")
         self.main_layout.addWidget(label)
@@ -121,6 +150,8 @@ class MainWindow(QMainWindow):
             self.btn_capture_window.setEnabled(False)
             self.btn_select_region.setEnabled(False)
             self.preview_label.setText("Capturing...")
+            self.ocr_status_label.setText("<b>OCR Status:</b> Idle")
+            self.ocr_text_edit.clear()
         else:
             self.btn_capture_window.setEnabled(True)
             self.btn_select_region.setEnabled(True)
@@ -138,8 +169,6 @@ class MainWindow(QMainWindow):
 
     def on_select_region_clicked(self):
         self.set_capture_state(CaptureState.CAPTURING)
-        
-        # Hide the main window to allow clean region selection of what's behind it
         self.hide()
         
         self.selector = RegionSelector()
@@ -147,7 +176,6 @@ class MainWindow(QMainWindow):
         self.selector.show()
 
     def on_region_selected(self, rect: QRect):
-        # Restore the main window
         self.show()
         self.raise_()
         self.activateWindow()
@@ -174,22 +202,20 @@ class MainWindow(QMainWindow):
             
         self.set_capture_state(CaptureState.SUCCESS)
         
-        # Convert QImage to QPixmap at the UI boundary
         pixmap = QPixmap.fromImage(result.image)
         self.current_pixmap = pixmap
-        
         self.update_preview()
         
-        # Show metadata
         time_str = __import__('datetime').datetime.fromtimestamp(result.timestamp).strftime('%H:%M:%S')
         meta_text = f"Type: {result.capture_type.name} | Res: {result.width}x{result.height} | Time: {time_str}"
         self.metadata_label.setText(meta_text)
+        
+        self.start_ocr_processing(result)
 
     def handle_capture_error(self, message: str):
         self.set_capture_state(CaptureState.FAILED)
         QMessageBox.warning(self, "Capture Failed", message)
         
-        # Reset preview if it was showing "Capturing..."
         if self.preview_label.text() == "Capturing...":
             if hasattr(self, 'current_pixmap'):
                 self.update_preview()
@@ -197,17 +223,54 @@ class MainWindow(QMainWindow):
                 self.preview_label.setText("No screen captured")
 
     def resizeEvent(self, event):
-        """Ensure the preview image scales when the window resizes."""
         super().resizeEvent(event)
         if hasattr(self, 'current_pixmap') and self.capture_state == CaptureState.SUCCESS:
             self.update_preview()
 
     def update_preview(self):
         if hasattr(self, 'current_pixmap') and not self.current_pixmap.isNull():
-            # Scale the pixmap to fit the label, preserving aspect ratio
             scaled_pixmap = self.current_pixmap.scaled(
                 self.preview_label.size(),
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation
             )
             self.preview_label.setPixmap(scaled_pixmap)
+
+    def start_ocr_processing(self, capture_result: CaptureResult):
+        if not self.ocr_service.is_available:
+            self.ocr_status_label.setText("<b>OCR Status:</b> Unavailable (EasyOCR not installed)")
+            return
+            
+        self.ocr_status_label.setText("<b>OCR Status:</b> Reading screen...")
+        
+        # Threading using QObject and moveToThread
+        self.ocr_thread = QThread()
+        self.ocr_worker = OCRWorker(capture_result, self.ocr_service)
+        self.ocr_worker.moveToThread(self.ocr_thread)
+        
+        # Connect signals
+        self.ocr_thread.started.connect(self.ocr_worker.process)
+        self.ocr_worker.finished.connect(self.on_ocr_success)
+        self.ocr_worker.error.connect(self.on_ocr_error)
+        
+        # Cleanup
+        self.ocr_worker.finished.connect(self.ocr_thread.quit)
+        self.ocr_worker.finished.connect(self.ocr_worker.deleteLater)
+        self.ocr_thread.finished.connect(self.ocr_thread.deleteLater)
+        
+        self.ocr_worker.error.connect(self.ocr_thread.quit)
+        self.ocr_worker.error.connect(self.ocr_worker.deleteLater)
+        
+        self.ocr_thread.start()
+
+    def on_ocr_success(self, result: OCRResult):
+        region_count = len(result.regions)
+        self.ocr_status_label.setText(
+            f"<b>OCR Status:</b> {region_count} text regions detected · {result.processing_time_ms:.0f} ms"
+        )
+        
+        self.ocr_text_edit.setPlainText(result.full_text)
+        
+    def on_ocr_error(self, error_msg: str):
+        self.ocr_status_label.setText(f"<b>OCR Status:</b> Error")
+        self.ocr_text_edit.setPlainText(f"Failed to extract text:\n{error_msg}")
