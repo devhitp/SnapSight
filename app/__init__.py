@@ -1,0 +1,3 @@
+"""
+SnapSight application package.
+"""
