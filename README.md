@@ -8,11 +8,17 @@ SnapSight is a privacy-first, on-device screen intelligence assistant designed f
 
 ## Current Status
 
-Sprint 1 — Project Foundation
+Sprint 2 — Screen Capture & Context Acquisition
 
 ## Planned Architecture
 
 Screen Capture → OCR/Vision → Context Builder → AI Router → Local LLM → Answer
+
+## Capture Capabilities (Sprint 2)
+
+- **Window Capture**: Captures the active foreground window using native Windows APIs.
+- **Region Selection**: Allows the user to select an arbitrary rectangular region of the screen.
+- **Preview**: Displays the captured frame preserving aspect ratio.
 
 ## Development Setup
 
@@ -25,7 +31,7 @@ Screen Capture → OCR/Vision → Context Builder → AI Router → Local LLM �
 
 ## Current Limitations
 
-- screen capture is not implemented yet
-- OCR is not implemented yet
-- local LLM is not implemented yet
-- NPU acceleration is not implemented yet
+- **OCR is NOT implemented yet.**
+- **Local LLM is NOT implemented yet.**
+- **AI routing is NOT implemented yet.**
+- **NPU acceleration is NOT implemented yet.**
