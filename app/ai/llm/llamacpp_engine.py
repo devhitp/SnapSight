@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))),
     "models",
-    "phi-3.5-mini-instruct.Q4_K_M.gguf",
+    "Phi-3.5-mini-instruct-Q4_K_M.gguf",
 )
 
 # System prompt that keeps OCR text as data and prevents prompt injection
