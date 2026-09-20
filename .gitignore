@@ -13,6 +13,12 @@ __pycache__/
 *.pth
 *.pt
 
+# Local LLM model files — NEVER commit these
+*.gguf
+*.safetensors
+*.bin
+models/*.onnx
+
 # Generated test images (never commit screenshots or temp images)
 tests/*.png
 tests/*.jpg
