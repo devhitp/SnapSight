@@ -26,7 +26,7 @@ class QuestionRouter:
 
     MIXED_KEYWORDS = [
         "explain this graph", "summarize this screen", "what is this page about",
-        "explain what is happening here"
+        "explain what is happening here", "explain what this graph"
     ]
 
     def _matches_keywords(self, text: str, keywords: list[str]) -> bool:
