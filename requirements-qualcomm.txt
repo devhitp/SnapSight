@@ -1,0 +1,12 @@
+# Qualcomm Snapdragon Runtime Dependencies (Optional)
+# This file documents the required dependencies for enabling Qualcomm NPU acceleration.
+#
+# Do NOT run `pip install -r requirements-qualcomm.txt` unless you are on a verified 
+# Snapdragon X Elite device, as it may conflict with default x86-64 CPU dependencies.
+#
+# Currently recommended packages for ONNX/QNN execution on Snapdragon:
+#
+# onnxruntime-qnn
+#
+# Note: SnapSight's OCR architecture relies on an ONNX model artifact that must 
+# also be deployed locally in the models/ directory to utilize this runtime.

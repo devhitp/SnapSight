@@ -4,9 +4,7 @@ Privacy-first, on-device screen intelligence assistant for Windows PCs, with fut
 
 > **See your screen. Ask anything. Keep everything on-device.**
 
-## Current Status
-
-Sprint 5 — AI Router + Multimodal Screen Understanding
+Sprint 6 — Qualcomm Snapdragon NPU Runtime & Optimization
 
 ## Pipeline
 
@@ -45,6 +43,12 @@ User Question → AI Router → Context Selector
 - **Context Selection** — orchestrator provides only the necessary context (e.g., skips sending OCR context for general/visual questions) to save tokens and time.
 - **Vision Abstraction** — clean `VisionEngine` interface prepared for multimodal understanding.
 - **Unavailable Fallback** — cleanly handles visual queries by explaining that no vision backend is currently installed.
+
+### Sprint 6 — Qualcomm Snapdragon NPU Runtime & Optimization
+- **Hardware-Aware Runtime Detection** — reliably detects platform, architecture, CPU vendor (Intel/AMD/Qualcomm) and device using Windows specific queries.
+- **Qualcomm OCR Backend** — isolated `QualcommOCREngine` architecturally ready to load `hrnet_w48_ocr.onnx` via ONNX Runtime + QNN Execution Provider.
+- **Graceful CPU Fallback** — explicitly falls back to EasyOCR if QNN cannot initialize or the model is missing, ensuring Intel/x86 dev environments continue to function seamlessly.
+- **Factual Benchmarking** — independent OCR benchmark tool providing transparent, verifiable latency metrics and hardware tracking without faking NPU status.
 
 ## Privacy & Local Execution
 
@@ -105,10 +109,10 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 | Local LLM (llama.cpp, CPU) | ✅ Implemented |
 | AI Router | ✅ Implemented (Deterministic intent classifier) |
 | Vision Backend | 🔲 Architecture prepared, fallback unavailable state |
-| Qualcomm ONNX/QNN backend | 🔲 Architecture prepared, not implemented |
-| Verified Snapdragon NPU execution | ❌ Not yet — requires Snapdragon hardware + QNN integration |
+| Qualcomm ONNX/QNN backend | 🔲 Architecture prepared, gracefully falls back to CPU |
+| Verified Snapdragon NPU execution | ❌ Not yet — requires Snapdragon hardware + model artifact |
 
-> **Note on Qualcomm AI Hub:** Qualcomm AI Hub provides optimized ONNX/QNN profiles for both EasyOCR and Phi-3.5-mini on Snapdragon X Elite. These are **external reference profiles** and have not been integrated into SnapSight yet. Actual NPU performance must be measured on a Snapdragon device once the QNN backend is implemented.
+> **Note on Qualcomm AI Hub:** Qualcomm AI Hub provides optimized ONNX/QNN profiles for both EasyOCR and Phi-3.5-mini on Snapdragon X Elite. These are **external reference results** and have not been integrated into SnapSight yet. Actual NPU performance must be measured on a real Snapdragon device. SnapSight benchmarks will strictly reflect the hardware they are run on.
 
 ## Current Limitations
 

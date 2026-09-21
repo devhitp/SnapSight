@@ -70,8 +70,23 @@ class MainWindow(QMainWindow):
 
         title_label = QLabel("<h2>SnapSight</h2>")
 
-        llm_status = "CPU" if self.llm_engine._runtime.available else "Unavailable"
-        self.header_status_label = QLabel(f"🔒 Local AI · {llm_status}")
+        llm_avail = self.llm_engine._runtime.available
+        llm_status = f"LLM: llama.cpp • {'CPU' if llm_avail else 'Unavailable'}"
+        
+        ocr_exec = self.ocr_service._runtime_status.execution
+        if ocr_exec.available:
+            ocr_backend = self.ocr_service._runtime_status.backend
+            ocr_accel = ocr_exec.accelerator.value
+            # Display nicer name for easyocr
+            if ocr_backend == "easyocr":
+                ocr_backend = "EasyOCR"
+            elif ocr_backend == "qualcomm":
+                ocr_backend = "Qualcomm"
+            ocr_status = f"OCR: {ocr_backend} • {ocr_accel}"
+        else:
+            ocr_status = "OCR: Unavailable"
+
+        self.header_status_label = QLabel(f"🔒 {ocr_status}  |  {llm_status}")
         self.header_status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.header_status_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
 
