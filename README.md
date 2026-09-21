@@ -57,6 +57,15 @@ User Question → AI Router → Context Selector
 - **Keyboard Shortcuts** — added `Ctrl+Enter` to quickly submit questions and `Escape` to gracefully exit the region selector.
 - **Granular Telemetry Footer** — decoupled runtime hardware status into a compact, unobtrusive footer.
 
+### Sprint 8 — Performance, Benchmarking & Reliability
+- **Benchmark Harness** — typed `BenchmarkResult` + `BenchmarkHarness` with warmup, min/mean/median/p95/max using `time.perf_counter()`.
+- **Unified Benchmark Script** — `python scripts/benchmark.py [--ocr|--llm|--router|--e2e|--json]` for reproducible measurements.
+- **Cold/Warm Separation** — model initialization and inference benchmarked independently.
+- **Model Reuse Verified** — regression test confirms the GGUF is loaded once and reused across all questions.
+- **Memory Measurement** — process RSS tracked via `psutil` at each pipeline stage.
+- **Reliability Tests** — repeated-operation, error-recovery, and worker lifecycle tests.
+- **Honest Qualcomm Section** — benchmark explicitly states NPU results not executed on development hardware.
+
 ## Privacy & Local Execution
 
 SnapSight processes everything **100% on-device**:
@@ -128,12 +137,33 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 - **No local LLM** without downloading the GGUF model (~2.4 GB)
 - **No voice input** — text only
 
+## Performance
+
+SnapSight includes a built-in benchmark harness for measuring real performance on the host hardware.
+
+**Development hardware**: Intel Core i5-11400H, AMD64, CPU-only (no CUDA, no Snapdragon NPU)
+
+```bash
+python scripts/benchmark.py           # all benchmarks
+python scripts/benchmark.py --ocr     # OCR
+python scripts/benchmark.py --llm     # LLM
+python scripts/benchmark.py --router  # Router
+python scripts/benchmark.py --e2e     # End-to-end
+python scripts/benchmark.py --json    # Machine-readable (no private content)
+```
+
+**Keyboard shortcuts**: `Ctrl+Enter` submits the AI question.
+
+> ⚠️ Snapdragon NPU benchmark **NOT EXECUTED** on the development machine. No Snapdragon hardware is present. All measurements are CPU-only. Qualcomm AI Hub reference results are external and separate from SnapSight benchmarks.
+
+See [`docs/performance.md`](docs/performance.md) for full methodology, cold/warm distinction, memory measurement approach, and hardware limitations.
+
 ## Planned Architecture
 
 ```
 Screen Capture
     ↓
-OCR (EasyOCR)
+OCR (EasyOCR / Qualcomm QNN fallback)
     ↓
 AI Orchestrator (Router + Context Selector)
     ├── Local LLM (LlamaCpp)

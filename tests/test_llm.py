@@ -296,3 +296,65 @@ def test_ai_failure_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
     assert not window._ai_generating
     assert "not found" in window.answer_text_edit.toPlainText().lower()
     assert "Error encountered" in window.ai_metadata_label.text()
+
+
+# ── Sprint 8 Model Reuse Regression ───────────────────────────────────────────
+
+@patch("app.ai.llm.llamacpp_engine.detect_llm_runtime")
+def test_llm_initialize_short_circuits_after_first_load(mock_runtime):
+    """
+    _initialize() must return immediately (None) without re-loading
+    when self._llm is already set. This prevents the 2.4 GB model
+    from being reloaded for every generate() call.
+
+    Verified by checking _initialize() returns None (success) immediately
+    and that the _llm object identity is unchanged after the call.
+    """
+    from app.ai.llm.llamacpp_engine import LlamaCppEngine
+    mock_runtime.return_value = LLMRuntimeStatus(
+        backend=LLMBackend.LLAMA_CPP,
+        acceleration=LLMAcceleration.CPU,
+        available=True,
+    )
+    engine = LlamaCppEngine(model_path="models/fake.gguf")
+
+    # Inject a pre-loaded mock so _initialize sees it as already loaded
+    pre_loaded_mock = MagicMock()
+    engine._llm = pre_loaded_mock
+
+    # _initialize must short-circuit and return None without touching the model
+    result = engine._initialize()
+
+    assert result is None  # No error returned
+    # The _llm must still be the exact same object — not replaced
+    assert engine._llm is pre_loaded_mock, \
+        "_initialize() must not replace an already-loaded model"
+
+
+
+@patch("app.ai.llm.llamacpp_engine.detect_llm_runtime")
+def test_llm_model_instance_identical_across_requests(mock_runtime):
+    """
+    The _llm object identity must remain the same across multiple generate() calls.
+    A new LlamaCpp instance being created would indicate an accidental reload.
+    """
+    from app.ai.llm.llamacpp_engine import LlamaCppEngine
+    mock_runtime.return_value = LLMRuntimeStatus(
+        backend=LLMBackend.LLAMA_CPP,
+        acceleration=LLMAcceleration.CPU,
+        available=True,
+    )
+    engine = LlamaCppEngine(model_path="models/fake.gguf")
+
+    mock_llm = MagicMock()
+    mock_llm.return_value = {"choices": [{"text": "ok"}], "usage": {}}
+    engine._llm = mock_llm
+
+    id_before = id(engine._llm)
+
+    for _ in range(3):
+        engine.generate("Question?", "")
+
+    assert id(engine._llm) == id_before, \
+        "LLM model instance must not be replaced between generate() calls"
+
