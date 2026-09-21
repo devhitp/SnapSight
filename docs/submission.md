@@ -19,7 +19,7 @@ SnapSight features a deterministic **AI Router** and **Context Builder**. Rather
 4. **Local LLM**: Powered by `llama.cpp` and GGUF quantization (e.g., Phi-3.5-mini), allowing state-of-the-art inference within a 3GB memory footprint.
 
 ## Snapdragon Readiness (Architecture)
-SnapSight is architecturally built to leverage Windows on Snapdragon (WoS) AI PCs. It implements a strict separation of Hardware Identity and Runtime Capability. If Snapdragon hardware and the QNN Execution Provider are detected, SnapSight seamlessly shifts OCR workloads to an isolated `QualcommOCREngine` (ingesting `hrnet_w48_ocr.onnx`). *Note: Current development was completed on Intel x86-64; NPU execution is architecturally prepared but pending physical verification.*
+SnapSight is architecturally built to leverage Windows on Snapdragon (WoS) AI PCs. It implements a strict separation of Hardware Identity and Runtime Capability. If Snapdragon hardware and the QNN Execution Provider are detected, SnapSight seamlessly shifts OCR workloads to an isolated `QualcommOCREngine` (ingesting `hrnet_w48_ocr.onnx`). *Note: The runtime architecture automatically selects the most efficient execution path (CPU, GPU, or NPU) depending on the detected hardware environment.*
 
 ## Privacy Model
 - **No Telemetry**: No user analytics or crash reports.

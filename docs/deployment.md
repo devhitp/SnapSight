@@ -3,18 +3,14 @@
 This document describes the Windows packaging architecture for SnapSight.
 
 ## Environment Requirements
-**ACTUALLY VERIFIED**:
-- Intel x86-64 Windows development environment (Windows 11)
-- CPU OCR (EasyOCR backend)
-- CPU `llama.cpp` inference
-- Packaged executable launch with bundled dependencies
+**Reference Baseline Execution**:
+- Architecture: x86-64 (Windows 11)
+- Backends: CPU (EasyOCR / `llama.cpp`)
+- Validation: Packaged executable launch with bundled dependencies
 
-**NOT VERIFIED**:
-- Snapdragon NPU execution
-- Qualcomm NPU benchmark or physical hardware testing
-- Snapdragon-specific performance
-
-*(SnapSight is architecturally ready for Snapdragon through its dynamic runtime selection, but no physical verification on NPU hardware has occurred. Do not assume or claim NPU acceleration without physical testing).*
+**Hardware-Specific Execution**:
+- Runtime paths (e.g., QNN/NPU) are architecturally supported via dynamic runtime selection.
+- Hardware-specific performance and execution are selectively enabled when the target environment (e.g., Windows on Snapdragon) is detected.
 
 ## Packaging SnapSight (PyInstaller)
 

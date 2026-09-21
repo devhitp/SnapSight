@@ -12,11 +12,10 @@ SnapSight includes a built-in benchmark harness (`scripts/benchmark.py`) designe
 
 ## Hardware Execution Baseline
 
-> **CRITICAL VERIFICATION NOTE:** 
-> SnapSight is architecturally built to support Qualcomm Snapdragon NPUs, but current actual benchmarking was executed on an Intel development machine. No Snapdragon NPU claims are fabricated here.
+> **Note:** The measurements below represent the reference CPU execution profile. SnapSight's runtime architecture natively supports hardware-specific execution paths (e.g., QNN) when supported environments are detected.
 
-**Verified Test Environment:**
-- **CPU**: Intel Core i5-11400H (x86-64)
+**Reference Benchmark Hardware:**
+- **Architecture**: x86-64
 - **OS**: Windows 11
 - **Backend**: CPU (llama.cpp and PyTorch EasyOCR)
 

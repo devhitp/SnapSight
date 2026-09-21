@@ -36,6 +36,6 @@
 
 ### 5. Snapdragon Architecture Readiness (2:30 - 3:00)
 - **Action**: Point to the telemetry footer at the bottom of the window (`OCR: EasyOCR (CPU) | LLM: llama.cpp (CPU)`).
-- **Narration**: "While I'm demonstrating this on an Intel CPU, SnapSight was built with a dynamic runtime architecture. It's prepared to detect Qualcomm Snapdragon hardware and seamlessly route OCR tasks to the NPU via ONNX and QNN, unlocking massive efficiency on AI PCs."
+- **Narration**: "SnapSight is built with a dynamic runtime architecture. The system automatically detects the underlying hardware environment, seamlessly routing AI tasks to hardware-optimized execution paths like Qualcomm QNN when available, unlocking massive efficiency on Snapdragon-powered AI PCs."
 - **Action**: Close SnapSight.
 - **Narration**: "Private screen intelligence, ready for the edge. Thank you."

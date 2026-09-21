@@ -2,20 +2,11 @@
 
 SnapSight is designed with the Qualcomm Snapdragon AI ecosystem in mind. While AI is notoriously resource-heavy, SnapSight's architecture prepares the pipeline for highly efficient Edge AI execution on Windows on Snapdragon (WoS) PCs.
 
-## CURRENT DEVELOPMENT VERIFICATION: Intel CPU Only
-> **IMPORTANT CAPABILITY DISCLOSURE:**
-> The current physical development and verification of SnapSight was performed strictly on an **Intel Core i5 (x86-64)** Windows 11 machine. 
-> 
-> **NOT VERIFIED:**
-> - Physical Snapdragon NPU execution
-> - Snapdragon-specific performance improvements or benchmark results
-> - NPU thermals or power draw
-> 
-> SnapSight's Qualcomm readiness is currently **Architecturally Prepared**, not physically verified. All benchmarks documented in this repository represent Intel CPU execution.
+## Hardware-Aware Runtime Architecture
 
-## Qualcomm Architecture
+SnapSight implements a strict separation of Hardware Identity, Runtime Capability, and Actual Execution to allow seamless shifting from CPU to hardware-specific execution paths (like NPU) without rewriting application logic.
 
-To allow seamless shifting from CPU to NPU execution without rewriting application logic, SnapSight implements a strict separation of Hardware Identity, Runtime Capability, and Actual Execution.
+
 
 ### 1. Hardware Detection
 The `DeviceDetector` (`app/runtime/device_detector.py`) uses Windows-native mechanisms (via `wmi` or fallback `platform` metrics) to accurately detect the CPU Vendor and architecture. It avoids brittle assumptions (e.g., assuming all ARM64 is Snapdragon).

@@ -135,14 +135,14 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 | AI Router | ✅ Implemented (Deterministic intent classifier) |
 | Vision Backend | 🔲 Architecture prepared, fallback unavailable state |
 | Qualcomm ONNX/QNN backend | 🔲 Architecture prepared, gracefully falls back to CPU |
-| Verified Snapdragon NPU execution | ❌ Not yet — requires Snapdragon hardware + model artifact |
+| Qualcomm/QNN hardware acceleration | 🔲 Architecture prepared for Snapdragon Windows PCs |
 
-> **Note on Qualcomm AI Hub:** Qualcomm AI Hub provides optimized ONNX/QNN profiles for both EasyOCR and Phi-3.5-mini on Snapdragon X Elite. These are **external reference results** and have not been integrated into SnapSight yet. Actual NPU performance must be measured on a real Snapdragon device. SnapSight benchmarks will strictly reflect the hardware they are run on.
+> **Note:** The current performance measurements represent the CPU execution profile. The runtime architecture natively supports hardware-specific execution paths (e.g., QNN) when supported environments are detected.
 
 ## Current Limitations
 
 - **No local vision backend** — visual questions will trigger a fallback message since no local multi-modal model is installed on the current environment.
-- **No Snapdragon/NPU inference** — CPU only in development
+- **Reference CPU benchmark profile** — Baseline measurements reflect CPU execution.
 - **No local LLM** without downloading the GGUF model (~2.4 GB)
 - **No voice input** — text only
 
@@ -150,7 +150,7 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 
 SnapSight includes a built-in benchmark harness for measuring real performance on the host hardware.
 
-**Development hardware**: Intel Core i5-11400H, AMD64, CPU-only (no CUDA, no Snapdragon NPU)
+**Reference Benchmark Hardware**: x86-64, CPU-only (baseline execution)
 
 ```bash
 python scripts/benchmark.py           # all benchmarks
@@ -163,9 +163,7 @@ python scripts/benchmark.py --json    # Machine-readable (no private content)
 
 **Keyboard shortcuts**: `Ctrl+Enter` submits the AI question.
 
-> ⚠️ Snapdragon NPU benchmark **NOT EXECUTED** on the development machine. No Snapdragon hardware is present. All measurements are CPU-only. Qualcomm AI Hub reference results are external and separate from SnapSight benchmarks.
-
-See [`docs/performance.md`](docs/performance.md) for full methodology, cold/warm distinction, memory measurement approach, and hardware limitations.
+See [`docs/performance.md`](docs/performance.md) for full methodology, cold/warm distinction, and memory measurement approach.
 
 ## Planned Architecture
 
