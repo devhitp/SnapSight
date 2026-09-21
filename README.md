@@ -6,12 +6,20 @@ Privacy-first, on-device screen intelligence assistant for Windows PCs, with fut
 
 ## Current Status
 
-Sprint 4 — Local AI Screen Q&A
+Sprint 5 — AI Router + Multimodal Screen Understanding
 
 ## Pipeline
 
 ```
-Screen Capture → OCR → Context Builder → Local LLM → Answer
+Screen Capture → OCR + Vision Engines
+                  ↓
+User Question → AI Router → Context Selector
+                  ↓
+          Local AI Orchestrator
+                  ↓
+   Local LLM or Local Vision Backend
+                  ↓
+               Answer
 ```
 
 ## Capabilities
@@ -30,10 +38,13 @@ Screen Capture → OCR → Context Builder → Local LLM → Answer
 - **Local LLM** using [Phi-3.5-Mini-Instruct](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF) via llama-cpp-python
 - **Screen context Q&A** — ask natural language questions about captured screen content
 - **ContextBuilder** — converts OCR results into safe, LLM-ready prompts
-- **Prompt-injection safety** — OCR text is treated as DATA, not instructions
-- **Async generation** — UI remains responsive during inference
-- **Model reuse** — model loaded once, reused for subsequent questions
 - **CPU execution** — no GPU required
+
+### Sprint 5 — AI Router & Multimodal Vision
+- **Intelligent Routing** — deterministic intent classifier routing questions to TEXT, CODE, VISUAL, MIXED, or GENERAL routes.
+- **Context Selection** — orchestrator provides only the necessary context (e.g., skips sending OCR context for general/visual questions) to save tokens and time.
+- **Vision Abstraction** — clean `VisionEngine` interface prepared for multimodal understanding.
+- **Unavailable Fallback** — cleanly handles visual queries by explaining that no vision backend is currently installed.
 
 ## Privacy & Local Execution
 
@@ -92,6 +103,8 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 | Screen Capture | ✅ Implemented |
 | OCR (EasyOCR, CPU) | ✅ Implemented |
 | Local LLM (llama.cpp, CPU) | ✅ Implemented |
+| AI Router | ✅ Implemented (Deterministic intent classifier) |
+| Vision Backend | 🔲 Architecture prepared, fallback unavailable state |
 | Qualcomm ONNX/QNN backend | 🔲 Architecture prepared, not implemented |
 | Verified Snapdragon NPU execution | ❌ Not yet — requires Snapdragon hardware + QNN integration |
 
@@ -99,9 +112,9 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 
 ## Current Limitations
 
+- **No local vision backend** — visual questions will trigger a fallback message since no local multi-modal model is installed on the current environment.
 - **No Snapdragon/NPU inference** — CPU only in development
 - **No local LLM** without downloading the GGUF model (~2.4 GB)
-- **No AI Router** — single local backend
 - **No voice input** — text only
 
 ## Planned Architecture
@@ -111,10 +124,9 @@ Screen Capture
     ↓
 OCR (EasyOCR)
     ↓
-Context Builder
-    ↓
-LLM Router  ──┬── LocalCPU (LlamaCpp)
-              └── Future: Qualcomm QNN
+AI Orchestrator (Router + Context Selector)
+    ├── Local LLM (LlamaCpp)
+    └── Vision Engine (Currently Unavailable Fallback)
     ↓
 Answer
 ```

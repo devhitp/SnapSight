@@ -32,10 +32,10 @@ def test_ui_controls_exist(qapp):
     assert window.btn_select_region is not None
     assert window.btn_ask_ai is not None
 
-def test_ask_ai_starts_disabled(qapp):
-    """Test 5: Ask AI starts disabled."""
+def test_ask_ai_starts_enabled(qapp):
+    """Test 5: Ask AI starts enabled for general queries."""
     window = MainWindow()
-    assert window.btn_ask_ai.isEnabled() is False
+    assert window.btn_ask_ai.isEnabled() is True
 
 def test_capture_buttons_exist(qapp):
     """Test 6: Capture buttons exist (and are enabled)."""

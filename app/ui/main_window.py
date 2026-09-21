@@ -16,11 +16,11 @@ from app.capture.models import CaptureResult, CaptureState
 from app.ui.components.region_selector import RegionSelector
 from app.ai.ocr.ocr_service import OCRService
 from app.ai.ocr.models import OCRResult
-from app.ai.context.builder import ContextBuilder
 from app.ai.llm.llamacpp_engine import LlamaCppEngine
-from app.ai.llm.models import LLMResult
 from app.ui.workers.ocr_worker import OCRWorker
-from app.ui.workers.llm_worker import LLMWorker
+from app.ai.vision.unavailable_engine import UnavailableVisionEngine
+from app.ai.orchestrator import AIOrchestrator, AIOrchestratorResult
+from app.ui.workers.ai_worker import AIWorker
 
 logger = logging.getLogger(__name__)
 
@@ -37,17 +37,19 @@ class MainWindow(QMainWindow):
         self.capture_state = CaptureState.NONE
         self.ocr_service = OCRService()
         self.llm_engine = LlamaCppEngine()
-        self.context_builder = ContextBuilder()
+        self.vision_engine = UnavailableVisionEngine()
+        self.orchestrator = AIOrchestrator(self.llm_engine, self.vision_engine)
 
         # State
-        self._current_ocr_context: str = ""
-        self._llm_generating = False
+        self._last_capture_result = None
+        self._last_ocr_result = None
+        self._ai_generating = False
 
         # Worker handles (kept alive while threads run)
         self._ocr_thread = None
         self._ocr_worker = None
-        self._llm_thread = None
-        self._llm_worker = None
+        self._ai_thread = None
+        self._ai_worker = None
 
         # Build UI
         self.central_widget = QWidget()
@@ -152,9 +154,9 @@ class MainWindow(QMainWindow):
         self.text_input.setMaximumHeight(60)
 
         self.btn_ask_ai = QPushButton("Ask AI")
-        self.btn_ask_ai.setEnabled(False)
+        self.btn_ask_ai.setEnabled(True)
         self.btn_ask_ai.setMinimumWidth(90)
-        self.btn_ask_ai.setToolTip("Capture a screen first to enable local AI.")
+        self.btn_ask_ai.setToolTip("Ask a question about the screen or a general question.")
         self.btn_ask_ai.clicked.connect(self.on_ask_ai_clicked)
 
         question_input_layout.addWidget(self.text_input)
@@ -188,7 +190,8 @@ class MainWindow(QMainWindow):
             self.preview_label.setText("Capturing...")
             self.ocr_status_label.setText("<b>OCR:</b> Idle")
             self.ocr_text_edit.clear()
-            self._current_ocr_context = ""
+            self._last_capture_result = None
+            self._last_ocr_result = None
             self._update_ask_ai_state()
 
     def on_capture_window_clicked(self):
@@ -235,6 +238,7 @@ class MainWindow(QMainWindow):
             return
 
         self.set_capture_state(CaptureState.SUCCESS)
+        self._last_capture_result = result
         pixmap = QPixmap.fromImage(result.image)
         self.current_pixmap = pixmap
         self.update_preview()
@@ -300,23 +304,21 @@ class MainWindow(QMainWindow):
         )
         self.ocr_text_edit.setPlainText(result.full_text)
 
-        # Build context for LLM
-        raw_context = self.context_builder.build(result)
-        self._current_ocr_context = self.context_builder.format_for_prompt(raw_context)
+        # Save result for orchestrator
+        self._last_ocr_result = result
         self._update_ask_ai_state()
 
     def on_ocr_error(self, error_msg: str):
         self.ocr_status_label.setText("<b>OCR:</b> Error")
         self.ocr_text_edit.setPlainText(f"Failed to extract text:\n{error_msg}")
-        self._current_ocr_context = ""
+        self._last_ocr_result = None
         self._update_ask_ai_state()
 
-    # ── LLM Flow ──────────────────────────────────────────────────────────────
+    # ── Orchestrator Flow ─────────────────────────────────────────────────────
 
     def _update_ask_ai_state(self):
-        """Enable Ask AI only when OCR context exists and no generation is running."""
-        has_context = bool(self._current_ocr_context.strip())
-        self.btn_ask_ai.setEnabled(has_context and not self._llm_generating)
+        """Enable Ask AI when no generation is running."""
+        self.btn_ask_ai.setEnabled(not self._ai_generating)
 
     def on_ask_ai_clicked(self):
         question = self.text_input.toPlainText().strip()
@@ -324,59 +326,55 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Empty Question", "Please enter a question before clicking Ask AI.")
             return
 
-        if not self._current_ocr_context:
-            QMessageBox.information(self, "No Context", "Please capture a screen first.")
-            return
-
-        if self._llm_generating:
+        if self._ai_generating:
             return  # Ignore duplicate clicks
 
-        self._start_llm_generation(question, self._current_ocr_context)
+        self._start_ai_generation(question)
 
-    def _start_llm_generation(self, question: str, context: str):
-        self._llm_generating = True
+    def _start_ai_generation(self, question: str):
+        self._ai_generating = True
         self._update_ask_ai_state()
-        self.ai_status_label.setText("<b>AI:</b> Thinking locally...")
+        self.ai_status_label.setText("<b>AI:</b> Routing and analyzing locally...")
         self.answer_text_edit.clear()
 
-        self._llm_thread = QThread()
-        self._llm_worker = LLMWorker(question, context, self.llm_engine)
-        self._llm_worker.moveToThread(self._llm_thread)
+        self._ai_thread = QThread()
+        self._ai_worker = AIWorker(question, self._last_capture_result, self._last_ocr_result, self.orchestrator)
+        self._ai_worker.moveToThread(self._ai_thread)
 
-        self._llm_thread.started.connect(self._llm_worker.generate)
-        self._llm_worker.finished.connect(self.on_llm_success)
-        self._llm_worker.error.connect(self.on_llm_error)
+        self._ai_thread.started.connect(self._ai_worker.process)
+        self._ai_worker.finished.connect(self.on_ai_success)
+        self._ai_worker.error.connect(self.on_ai_error)
 
-        self._llm_worker.finished.connect(self._llm_thread.quit)
-        self._llm_worker.finished.connect(self._llm_worker.deleteLater)
-        self._llm_thread.finished.connect(self._llm_thread.deleteLater)
-        self._llm_worker.error.connect(self._llm_thread.quit)
-        self._llm_worker.error.connect(self._llm_worker.deleteLater)
+        self._ai_worker.finished.connect(self._ai_thread.quit)
+        self._ai_worker.finished.connect(self._ai_worker.deleteLater)
+        self._ai_thread.finished.connect(self._ai_thread.deleteLater)
+        self._ai_worker.error.connect(self._ai_thread.quit)
+        self._ai_worker.error.connect(self._ai_worker.deleteLater)
 
-        self._llm_thread.start()
+        self._ai_thread.start()
 
-    def on_llm_success(self, result: LLMResult):
-        self._llm_generating = False
+    def on_ai_success(self, result: AIOrchestratorResult):
+        self._ai_generating = False
         self._update_ask_ai_state()
 
         if not result.success:
-            self._show_llm_error(result.error or "Unknown error")
+            self._show_ai_error(result.error or "Unknown error")
             return
 
-        gen_s = result.generation_time_ms / 1000.0
-        status_parts = [f"Local response · {gen_s:.1f}s"]
-        if result.tokens_per_sec is not None:
-            status_parts.append(f"{result.tokens_per_sec:.1f} tok/s")
+        gen_s = result.inference_time_ms / 1000.0
+        status_parts = [f"Analyzed with: {result.backend_used}"]
+        status_parts.append(f"Route: {result.route_used.name}")
+        status_parts.append(f"Time: {gen_s:.1f}s")
+        
         self.ai_status_label.setText(f"<b>AI:</b> {' · '.join(status_parts)}")
-
         self.answer_text_edit.setPlainText(result.answer)
 
-    def on_llm_error(self, error_msg: str):
-        self._llm_generating = False
+    def on_ai_error(self, error_msg: str):
+        self._ai_generating = False
         self._update_ask_ai_state()
-        self._show_llm_error(error_msg)
+        self._show_ai_error(error_msg)
 
-    def _show_llm_error(self, message: str):
+    def _show_ai_error(self, message: str):
         self.ai_status_label.setText("<b>AI:</b> Error")
         self.answer_text_edit.setPlainText(f"Could not generate answer:\n{message}")
-        logger.error(f"LLM error: {message}")
+        logger.error(f"AI error: {message}")

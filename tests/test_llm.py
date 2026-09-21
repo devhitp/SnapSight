@@ -11,6 +11,8 @@ from PySide6.QtCore import Qt
 from app.ai.ocr.models import OCRResult, OCRTextRegion
 from app.ai.context.builder import ContextBuilder, CONFIDENCE_THRESHOLD, MAX_CONTEXT_CHARS
 from app.ai.llm.models import LLMResult
+from app.ai.orchestrator import AIOrchestratorResult
+from app.ai.router.models import QuestionIntent
 from app.ai.llm.runtime import LLMBackend, LLMAcceleration, LLMRuntimeStatus
 from app.capture.models import CaptureType
 
@@ -216,25 +218,25 @@ def test_engine_empty_question():
 
 @patch("app.ui.main_window.OCRService")
 @patch("app.ui.main_window.LlamaCppEngine")
-def test_ask_ai_disabled_on_start(mock_llm_cls, mock_ocr_cls, qapp):
+def test_ask_ai_enabled_on_start(mock_llm_cls, mock_ocr_cls, qapp):
     mock_ocr_cls.return_value.is_available = False
     mock_llm_cls.return_value._runtime.available = False
     from app.ui.main_window import MainWindow
     window = MainWindow()
-    assert not window.btn_ask_ai.isEnabled()
+    assert window.btn_ask_ai.isEnabled()
 
 
 @patch("app.ui.main_window.OCRService")
 @patch("app.ui.main_window.LlamaCppEngine")
-def test_ask_ai_enabled_after_ocr_context(mock_llm_cls, mock_ocr_cls, qapp):
+def test_ask_ai_remains_enabled_after_ocr_context(mock_llm_cls, mock_ocr_cls, qapp):
     mock_ocr_cls.return_value.is_available = False
     mock_llm_cls.return_value._runtime.available = False
     from app.ui.main_window import MainWindow
     window = MainWindow()
 
     # Simulate receiving OCR context
-    window._current_ocr_context = "--- BEGIN SCREEN TEXT ---\nSome text\n--- END SCREEN TEXT ---"
-    window._llm_generating = False
+    window._last_ocr_result = "mock_result"
+    window._ai_generating = False
     window._update_ask_ai_state()
 
     assert window.btn_ask_ai.isEnabled()
@@ -248,8 +250,8 @@ def test_ask_ai_disabled_while_generating(mock_llm_cls, mock_ocr_cls, qapp):
     from app.ui.main_window import MainWindow
     window = MainWindow()
 
-    window._current_ocr_context = "--- BEGIN SCREEN TEXT ---\nText\n--- END SCREEN TEXT ---"
-    window._llm_generating = True
+    window._last_ocr_result = "mock_result"
+    window._ai_generating = True
     window._update_ask_ai_state()
 
     assert not window.btn_ask_ai.isEnabled()
@@ -257,38 +259,39 @@ def test_ask_ai_disabled_while_generating(mock_llm_cls, mock_ocr_cls, qapp):
 
 @patch("app.ui.main_window.OCRService")
 @patch("app.ui.main_window.LlamaCppEngine")
-def test_llm_success_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
+def test_ai_success_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
     mock_ocr_cls.return_value.is_available = False
     mock_llm_cls.return_value._runtime.available = False
     from app.ui.main_window import MainWindow
     window = MainWindow()
 
-    window._llm_generating = True
-    mock_result = LLMResult(
+    window._ai_generating = True
+    mock_result = AIOrchestratorResult(
         answer="SnapSight is a local screen assistant.",
-        model_name="phi.gguf",
-        runtime_info="llama.cpp (CPU)",
-        generation_time_ms=2500.0,
-        success=True,
-        generated_tokens=10,
+        route_used=QuestionIntent.GENERAL,
+        backend_used="Local LLM",
+        inference_time_ms=2500.0,
+        ocr_used=False,
+        vision_used=False,
+        success=True
     )
-    window.on_llm_success(mock_result)
+    window.on_ai_success(mock_result)
 
-    assert not window._llm_generating
+    assert not window._ai_generating
     assert "SnapSight" in window.answer_text_edit.toPlainText()
     assert "2.5s" in window.ai_status_label.text()
 
 
 @patch("app.ui.main_window.OCRService")
 @patch("app.ui.main_window.LlamaCppEngine")
-def test_llm_failure_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
+def test_ai_failure_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
     mock_ocr_cls.return_value.is_available = False
     mock_llm_cls.return_value._runtime.available = False
     from app.ui.main_window import MainWindow
     window = MainWindow()
 
-    window._llm_generating = True
-    window.on_llm_error("Model file not found.")
+    window._ai_generating = True
+    window.on_ai_error("Model file not found.")
 
-    assert not window._llm_generating
+    assert not window._ai_generating
     assert "not found" in window.answer_text_edit.toPlainText().lower()
