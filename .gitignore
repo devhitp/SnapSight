@@ -25,4 +25,10 @@ tests/*.jpg
 tests/*.bmp
 
 # Torch hub cache
+# Torch hub cache
 torch_hub/
+
+# PyInstaller Build Artifacts
+build/
+dist/
+*.spec

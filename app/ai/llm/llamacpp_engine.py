@@ -15,10 +15,11 @@ from app.ai.llm.runtime import detect_llm_runtime, LLMBackend, LLMAcceleration
 
 logger = logging.getLogger(__name__)
 
-# Default model path relative to the project root
+from app.utils.paths import get_models_dir
+
+# Default model path relative to the models directory
 DEFAULT_MODEL_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))),
-    "models",
+    get_models_dir(),
     "Phi-3.5-mini-instruct-Q4_K_M.gguf",
 )
 
@@ -67,9 +68,10 @@ class LlamaCppEngine(LLMEngine):
         """Returns an error message if the model file is missing, else None."""
         if not os.path.isfile(self._model_path):
             return (
-                f"Model file not found: {self._model_path}\n"
-                "To use local AI, download the model and place it at the expected path.\n"
-                "See models/README.md for setup instructions."
+                f"LLM model file not found:\n{self._model_path}\n\n"
+                "To use local AI generation, please place the required GGUF model "
+                "in the 'models' directory next to the application.\n"
+                "Note: Screen capture and OCR features are still available."
             )
         return None
 

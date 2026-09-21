@@ -119,7 +119,13 @@ class MainWindow(QMainWindow):
 
         capture_btn_layout = QHBoxLayout()
         self.btn_capture_window = QPushButton("📷 Capture Window")
+        self.btn_capture_window.setAccessibleName("Capture Window")
+        self.btn_capture_window.setAccessibleDescription("Captures the entire active window for SnapSight to analyze.")
+
         self.btn_select_region = QPushButton("✂️ Select Region")
+        self.btn_select_region.setAccessibleName("Select Region")
+        self.btn_select_region.setAccessibleDescription("Allows you to drag and select a specific region of the screen to analyze.")
+
         self.btn_capture_window.clicked.connect(self.on_capture_window_clicked)
         self.btn_select_region.clicked.connect(self.on_select_region_clicked)
         capture_btn_layout.addWidget(self.btn_capture_window)
@@ -146,13 +152,17 @@ class MainWindow(QMainWindow):
         
         self.text_input = QTextEdit()
         self.text_input.setPlaceholderText("What would you like to know?\n(e.g., 'Summarize this screen', 'What does this error mean?')\nYou can also ask general questions without a capture.")
-        self.text_input.setMaximumHeight(80)
+        # Do not hardcode fixed pixel maximum heights to avoid overlap on high-DPI
+        self.text_input.setAccessibleName("Question Input")
+        self.text_input.setAccessibleDescription("Type your question about the screen here.")
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         self.btn_ask_ai = QPushButton("Ask AI")
         self.btn_ask_ai.setProperty("class", "Primary")
         self.btn_ask_ai.setMinimumWidth(100)
+        self.btn_ask_ai.setAccessibleName("Ask AI")
+        self.btn_ask_ai.setAccessibleDescription("Submit your question to SnapSight. Shortcut: Control Enter.")
         self.btn_ask_ai.clicked.connect(self.on_ask_ai_clicked)
         btn_layout.addWidget(self.btn_ask_ai)
 
@@ -173,6 +183,8 @@ class MainWindow(QMainWindow):
         self.answer_text_edit.setReadOnly(True)
         self.answer_text_edit.setPlaceholderText("Your answer will appear here.")
         self.answer_text_edit.setStyleSheet("border: none; background: transparent;")
+        self.answer_text_edit.setAccessibleName("Answer Area")
+        self.answer_text_edit.setAccessibleDescription("The AI's response will appear here. This area is read-only.")
 
         self.ai_metadata_label = QLabel("")
         self.ai_metadata_label.setProperty("class", "Metadata")
@@ -189,6 +201,12 @@ class MainWindow(QMainWindow):
         splitter.setSizes([480, 520])
 
         self.main_layout.addWidget(splitter, stretch=1)
+
+        # ── Accessibility Tab Order ──
+        QWidget.setTabOrder(self.btn_capture_window, self.btn_select_region)
+        QWidget.setTabOrder(self.btn_select_region, self.text_input)
+        QWidget.setTabOrder(self.text_input, self.btn_ask_ai)
+        QWidget.setTabOrder(self.btn_ask_ai, self.answer_text_edit)
 
     def setup_footer(self):
         footer_layout = QHBoxLayout()
@@ -429,9 +447,13 @@ class MainWindow(QMainWindow):
         self._show_ai_error(error_msg)
 
     def _show_ai_error(self, message: str):
+        # By default we show a generic failure
         user_msg = "SnapSight couldn't generate an answer. Please try again."
-        if "model" in message.lower() and "found" in message.lower():
-            user_msg = "Local AI model not found.\nPlace the required model in the models folder and try again."
+        
+        # If the backend sent up a user-friendly instruction block (e.g. from llamacpp_engine),
+        # we display it directly to help the user configure the model.
+        if "model file not found" in message.lower() or "models directory" in message.lower():
+            user_msg = message
         elif "vision" in message.lower() and "unavailable" in message.lower():
             user_msg = "Visual understanding isn't available on this device yet.\nText-based screen understanding is still available."
             

@@ -4,7 +4,7 @@ Privacy-first, on-device screen intelligence assistant for Windows PCs, with fut
 
 > **See your screen. Ask anything. Keep everything on-device.**
 
-Sprint 7 — Product Polish + UX
+Sprint 9 — Packaging, Deployment & Accessibility
 
 ## Pipeline
 
@@ -65,6 +65,15 @@ User Question → AI Router → Context Selector
 - **Memory Measurement** — process RSS tracked via `psutil` at each pipeline stage.
 - **Reliability Tests** — repeated-operation, error-recovery, and worker lifecycle tests.
 - **Honest Qualcomm Section** — benchmark explicitly states NPU results not executed on development hardware.
+
+### Sprint 9 — Packaging, Deployment & Accessibility
+- **Standalone Executable** — Packaged via PyInstaller into a distributable `dist/SnapSight` directory.
+- **External Models** — Large model weights (`.gguf`, `.onnx`) strictly remain external to the packaged executable to keep the distribution size minimal.
+- **Path Resolution** — Robust `app/utils/paths.py` securely resolves assets whether running from source or from the frozen PyInstaller `_MEIPASS`.
+- **Missing Model UI** — No raw stack traces. The UI gracefully falls back and informs the user if a model is not correctly placed next to the executable.
+- **Accessibility Enhancements** — Complete keyboard navigation with logical tab order, ARIA-style roles (`AccessibleName`), and visible focus outlines across all interactive UI controls.
+- **Release Validation** — Automated script verifies that no secrets, `.env` files, models, or private captures leak into the release bundle.
+- **Deployment Documentation** — For full packaging details, see [docs/deployment.md](docs/deployment.md).
 
 ## Privacy & Local Execution
 

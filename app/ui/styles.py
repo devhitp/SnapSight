@@ -47,6 +47,10 @@ QPushButton:hover {
 QPushButton:pressed {
     background-color: #222222;
 }
+QPushButton:focus {
+    border: 1px solid #00A6FF;
+    outline: none;
+}
 QPushButton:disabled {
     background-color: #2A2A2A;
     color: #777777;
@@ -63,6 +67,10 @@ QPushButton.Primary:hover {
 }
 QPushButton.Primary:pressed {
     background-color: #005A9E;
+}
+QPushButton.Primary:focus {
+    border: 1px solid #66C2FF;
+    outline: none;
 }
 QPushButton.Primary:disabled {
     background-color: #2A2A2A;
