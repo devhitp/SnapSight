@@ -90,7 +90,7 @@ def test_ui_capture_window_success(mock_capture_active, mock_ocr_service_cls, qa
     
     # Verify state updated
     assert window.capture_state == CaptureState.SUCCESS
-    assert "Type: WINDOW" in window.metadata_label.text()
+    assert "OCR Unavailable" in window.metadata_label.text()
     assert hasattr(window, 'current_pixmap')
     assert not window.current_pixmap.isNull()
 
@@ -114,4 +114,4 @@ def test_ui_capture_window_failure(mock_capture_active, mock_ocr_service_cls, qa
         mock_warning.assert_called_once()
         
     assert window.capture_state == CaptureState.FAILED
-    assert window.preview_label.text() == "No screen captured"
+    assert window.preview_label.text() == "Capture your screen to give SnapSight context."

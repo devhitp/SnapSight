@@ -1,14 +1,14 @@
 """
-SnapSight Main Window — Sprint 4.
-Coordinates capture → OCR → context → local LLM question answering.
+SnapSight Main Window — Sprint 7.
+Coordinates capture → OCR → context → local LLM question answering with modern UX.
 """
 import logging
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QTextEdit, QMessageBox, QSplitter
+    QLabel, QPushButton, QTextEdit, QMessageBox, QSplitter, QFrame
 )
 from PySide6.QtCore import Qt, QRect, QThread
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QShortcut, QKeySequence
 
 from app.runtime.device_detector import DeviceDetector
 from app.capture.capture_service import CaptureService, CaptureException
@@ -21,6 +21,7 @@ from app.ui.workers.ocr_worker import OCRWorker
 from app.ai.vision.unavailable_engine import UnavailableVisionEngine
 from app.ai.orchestrator import AIOrchestrator, AIOrchestratorResult
 from app.ui.workers.ai_worker import AIWorker
+from app.ui.styles import MODERN_DARK_THEME
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("SnapSight")
         self.setMinimumSize(1000, 750)
+        self.setStyleSheet(MODERN_DARK_THEME)
 
         # Services
         self.detector = DeviceDetector()
@@ -45,7 +47,7 @@ class MainWindow(QMainWindow):
         self._last_ocr_result = None
         self._ai_generating = False
 
-        # Worker handles (kept alive while threads run)
+        # Worker handles
         self._ocr_thread = None
         self._ocr_worker = None
         self._ai_thread = None
@@ -56,19 +58,143 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(20, 20, 20, 20)
-        self.main_layout.setSpacing(12)
+        self.main_layout.setSpacing(16)
 
         self.setup_header()
         self.setup_main_area()
-        self.setup_question_section()
         self.setup_footer()
+        
+        # Setup Shortcuts
+        self.setup_shortcuts()
 
     # ── UI Setup ──────────────────────────────────────────────────────────────
 
     def setup_header(self):
         header_layout = QHBoxLayout()
 
-        title_label = QLabel("<h2>SnapSight</h2>")
+        title_layout = QVBoxLayout()
+        title_label = QLabel("SnapSight")
+        title_label.setProperty("class", "Title")
+        subtitle_label = QLabel("Private Screen Intelligence")
+        subtitle_label.setProperty("class", "Subtitle")
+        title_layout.addWidget(title_label)
+        title_layout.addWidget(subtitle_label)
+        title_layout.setSpacing(0)
+
+        self.privacy_label = QLabel("🔒 On-device")
+        self.privacy_label.setProperty("class", "StatusGreen")
+        self.privacy_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        header_layout.addLayout(title_layout)
+        header_layout.addStretch()
+        header_layout.addWidget(self.privacy_label)
+        self.main_layout.addLayout(header_layout)
+
+    def setup_main_area(self):
+        splitter = QSplitter(Qt.Horizontal)
+
+        # ── Left: Screen Context Card ──────────────────────────────────────────
+        left_card = QFrame()
+        left_card.setProperty("class", "Card")
+        left_layout = QVBoxLayout(left_card)
+        left_layout.setContentsMargins(16, 16, 16, 16)
+        left_layout.setSpacing(12)
+
+        context_title = QLabel("SCREEN CONTEXT")
+        context_title.setProperty("class", "Metadata")
+        left_layout.addWidget(context_title)
+
+        self.preview_label = QLabel("Capture your screen to give SnapSight context.")
+        self.preview_label.setProperty("class", "PreviewEmpty")
+        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setMinimumHeight(280)
+        self.preview_label.setSizePolicy(
+            self.preview_label.sizePolicy().Policy.Expanding,
+            self.preview_label.sizePolicy().Policy.Expanding,
+        )
+
+        self.metadata_label = QLabel("Waiting for screen capture")
+        self.metadata_label.setProperty("class", "Metadata")
+        self.metadata_label.setAlignment(Qt.AlignCenter)
+
+        capture_btn_layout = QHBoxLayout()
+        self.btn_capture_window = QPushButton("📷 Capture Window")
+        self.btn_select_region = QPushButton("✂️ Select Region")
+        self.btn_capture_window.clicked.connect(self.on_capture_window_clicked)
+        self.btn_select_region.clicked.connect(self.on_select_region_clicked)
+        capture_btn_layout.addWidget(self.btn_capture_window)
+        capture_btn_layout.addWidget(self.btn_select_region)
+
+        left_layout.addWidget(self.preview_label, stretch=1)
+        left_layout.addWidget(self.metadata_label)
+        left_layout.addLayout(capture_btn_layout)
+
+        # ── Right: AI Interaction Cards ────────────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(16)
+
+        # Ask AI Card
+        ask_card = QFrame()
+        ask_card.setProperty("class", "Card")
+        ask_layout = QVBoxLayout(ask_card)
+        ask_layout.setContentsMargins(16, 16, 16, 16)
+        
+        ask_title = QLabel("ASK ABOUT YOUR SCREEN")
+        ask_title.setProperty("class", "Metadata")
+        
+        self.text_input = QTextEdit()
+        self.text_input.setPlaceholderText("What would you like to know?\n(e.g., 'Summarize this screen', 'What does this error mean?')\nYou can also ask general questions without a capture.")
+        self.text_input.setMaximumHeight(80)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        self.btn_ask_ai = QPushButton("Ask AI")
+        self.btn_ask_ai.setProperty("class", "Primary")
+        self.btn_ask_ai.setMinimumWidth(100)
+        self.btn_ask_ai.clicked.connect(self.on_ask_ai_clicked)
+        btn_layout.addWidget(self.btn_ask_ai)
+
+        ask_layout.addWidget(ask_title)
+        ask_layout.addWidget(self.text_input)
+        ask_layout.addLayout(btn_layout)
+
+        # Answer Card
+        answer_card = QFrame()
+        answer_card.setProperty("class", "Card")
+        answer_layout = QVBoxLayout(answer_card)
+        answer_layout.setContentsMargins(16, 16, 16, 16)
+
+        ans_title = QLabel("ANSWER")
+        ans_title.setProperty("class", "Metadata")
+
+        self.answer_text_edit = QTextEdit()
+        self.answer_text_edit.setReadOnly(True)
+        self.answer_text_edit.setPlaceholderText("Your answer will appear here.")
+        self.answer_text_edit.setStyleSheet("border: none; background: transparent;")
+
+        self.ai_metadata_label = QLabel("")
+        self.ai_metadata_label.setProperty("class", "Metadata")
+
+        answer_layout.addWidget(ans_title)
+        answer_layout.addWidget(self.answer_text_edit, stretch=1)
+        answer_layout.addWidget(self.ai_metadata_label)
+
+        right_layout.addWidget(ask_card)
+        right_layout.addWidget(answer_card, stretch=1)
+
+        splitter.addWidget(left_card)
+        splitter.addWidget(right_widget)
+        splitter.setSizes([480, 520])
+
+        self.main_layout.addWidget(splitter, stretch=1)
+
+    def setup_footer(self):
+        footer_layout = QHBoxLayout()
+
+        privacy_msg = QLabel("🔒 Screen data stays on this device.")
+        privacy_msg.setProperty("class", "Metadata")
 
         llm_avail = self.llm_engine._runtime.available
         llm_status = f"LLM: llama.cpp • {'CPU' if llm_avail else 'Unavailable'}"
@@ -77,7 +203,6 @@ class MainWindow(QMainWindow):
         if ocr_exec.available:
             ocr_backend = self.ocr_service._runtime_status.backend
             ocr_accel = ocr_exec.accelerator.value
-            # Display nicer name for easyocr
             if ocr_backend == "easyocr":
                 ocr_backend = "EasyOCR"
             elif ocr_backend == "qualcomm":
@@ -86,113 +211,19 @@ class MainWindow(QMainWindow):
         else:
             ocr_status = "OCR: Unavailable"
 
-        self.header_status_label = QLabel(f"🔒 {ocr_status}  |  {llm_status}")
-        self.header_status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.header_status_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
+        telemetry_label = QLabel(f"{ocr_status}  |  {llm_status}")
+        telemetry_label.setProperty("class", "Metadata")
+        telemetry_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-        header_layout.addWidget(self.header_status_label)
-        self.main_layout.addLayout(header_layout)
-
-    def setup_main_area(self):
-        splitter = QSplitter(Qt.Horizontal)
-
-        # ── Left: Capture Preview ──────────────────────────────────────────
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.preview_label = QLabel("No screen captured")
-        self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setStyleSheet(
-            "background-color: #2b2b2b; border-radius: 8px; color: #888; font-size: 13px;"
-        )
-        self.preview_label.setMinimumHeight(280)
-        self.preview_label.setSizePolicy(
-            self.preview_label.sizePolicy().Policy.Expanding,
-            self.preview_label.sizePolicy().Policy.Expanding,
-        )
-
-        self.metadata_label = QLabel("")
-        self.metadata_label.setStyleSheet("color: gray; font-size: 10px;")
-        self.metadata_label.setAlignment(Qt.AlignCenter)
-
-        capture_btn_layout = QHBoxLayout()
-        self.btn_capture_window = QPushButton("📷  Capture Window")
-        self.btn_select_region = QPushButton("✂️  Select Region")
-        self.btn_capture_window.clicked.connect(self.on_capture_window_clicked)
-        self.btn_select_region.clicked.connect(self.on_select_region_clicked)
-        capture_btn_layout.addWidget(self.btn_capture_window)
-        capture_btn_layout.addWidget(self.btn_select_region)
-        capture_btn_layout.addStretch()
-
-        left_layout.addWidget(self.preview_label)
-        left_layout.addWidget(self.metadata_label)
-        left_layout.addLayout(capture_btn_layout)
-
-        # ── Right: OCR & Answer ────────────────────────────────────────────
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.ocr_status_label = QLabel("<b>OCR:</b> Idle")
-        self.ocr_text_edit = QTextEdit()
-        self.ocr_text_edit.setReadOnly(True)
-        self.ocr_text_edit.setPlaceholderText("Screen text will appear here after capture...")
-        self.ocr_text_edit.setMaximumHeight(180)
-
-        self.ai_status_label = QLabel("<b>AI:</b> No context yet")
-        self.ai_status_label.setStyleSheet("color: gray; font-size: 11px;")
-        self.answer_text_edit = QTextEdit()
-        self.answer_text_edit.setReadOnly(True)
-        self.answer_text_edit.setPlaceholderText("Answer will appear here...")
-
-        right_layout.addWidget(self.ocr_status_label)
-        right_layout.addWidget(self.ocr_text_edit)
-        right_layout.addWidget(self.ai_status_label)
-        right_layout.addWidget(self.answer_text_edit)
-
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
-        splitter.setSizes([480, 520])
-
-        self.main_layout.addWidget(splitter, stretch=1)
-
-    def setup_question_section(self):
-        question_label = QLabel("<b>Ask anything about your captured screen</b>")
-        self.main_layout.addWidget(question_label)
-
-        question_input_layout = QHBoxLayout()
-        self.text_input = QTextEdit()
-        self.text_input.setPlaceholderText("Ask anything about your captured screen...")
-        self.text_input.setMaximumHeight(60)
-
-        self.btn_ask_ai = QPushButton("Ask AI")
-        self.btn_ask_ai.setEnabled(True)
-        self.btn_ask_ai.setMinimumWidth(90)
-        self.btn_ask_ai.setToolTip("Ask a question about the screen or a general question.")
-        self.btn_ask_ai.clicked.connect(self.on_ask_ai_clicked)
-
-        question_input_layout.addWidget(self.text_input)
-        question_input_layout.addWidget(self.btn_ask_ai)
-        self.main_layout.addLayout(question_input_layout)
-
-    def setup_footer(self):
-        footer_layout = QHBoxLayout()
-
-        privacy_label = QLabel("🔒 All processing is local · No data leaves this device")
-        privacy_label.setStyleSheet("color: #4CAF50; font-size: 10px;")
-
-        hw_mode = self.detector.detect()
-        hw_label = QLabel(f"Hardware: {hw_mode}")
-        hw_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        hw_label.setStyleSheet("color: gray; font-size: 10px;")
-
-        footer_layout.addWidget(privacy_label)
+        footer_layout.addWidget(privacy_msg)
         footer_layout.addStretch()
-        footer_layout.addWidget(hw_label)
+        footer_layout.addWidget(telemetry_label)
         self.main_layout.addLayout(footer_layout)
+
+    def setup_shortcuts(self):
+        # Ctrl+Enter to Ask AI
+        shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
+        shortcut.activated.connect(self.on_ask_ai_clicked)
 
     # ── Capture Flow ──────────────────────────────────────────────────────────
 
@@ -202,9 +233,12 @@ class MainWindow(QMainWindow):
         self.btn_capture_window.setEnabled(not capturing)
         self.btn_select_region.setEnabled(not capturing)
         if capturing:
-            self.preview_label.setText("Capturing...")
-            self.ocr_status_label.setText("<b>OCR:</b> Idle")
-            self.ocr_text_edit.clear()
+            self.preview_label.setText("Analyzing screen...")
+            self.preview_label.setProperty("class", "PreviewEmpty")
+            self.preview_label.style().unpolish(self.preview_label)
+            self.preview_label.style().polish(self.preview_label)
+            
+            self.metadata_label.setText("Reading screen...")
             self._last_capture_result = None
             self._last_ocr_result = None
             self._update_ask_ai_state()
@@ -233,9 +267,12 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         if rect.isEmpty():
             self.set_capture_state(CaptureState.CANCELLED)
-            if self.preview_label.text() == "Capturing...":
+            if self.preview_label.text() == "Analyzing screen...":
                 self.preview_label.setText(
-                    "No screen captured" if not hasattr(self, "current_pixmap") else ""
+                    "Capture your screen to give SnapSight context." if not hasattr(self, "current_pixmap") else ""
+                )
+                self.metadata_label.setText(
+                    "Waiting for screen capture" if not hasattr(self, "current_pixmap") else "Screen context ready"
                 )
             return
         try:
@@ -256,22 +293,31 @@ class MainWindow(QMainWindow):
         self._last_capture_result = result
         pixmap = QPixmap.fromImage(result.image)
         self.current_pixmap = pixmap
+        
+        # Remove dashed border on success
+        self.preview_label.setProperty("class", "PreviewImage")
+        self.preview_label.style().unpolish(self.preview_label)
+        self.preview_label.style().polish(self.preview_label)
+        
         self.update_preview()
 
         import datetime
         time_str = datetime.datetime.fromtimestamp(result.timestamp).strftime("%H:%M:%S")
-        self.metadata_label.setText(
-            f"Type: {result.capture_type.name} | {result.width}×{result.height} | {time_str}"
-        )
+        self.metadata_label.setText(f"Screen captured | {result.width}×{result.height} | {time_str}")
+        
         self.start_ocr_processing(result)
 
     def handle_capture_error(self, message: str):
         self.set_capture_state(CaptureState.FAILED)
-        QMessageBox.warning(self, "Capture Failed", message)
-        if self.preview_label.text() == "Capturing...":
+        QMessageBox.warning(self, "Capture Failed", f"SnapSight couldn't capture the screen: {message}\nPlease try again.")
+        if self.preview_label.text() == "Analyzing screen...":
             self.preview_label.setText(
-                "No screen captured" if not hasattr(self, "current_pixmap") else ""
+                "Capture your screen to give SnapSight context." if not hasattr(self, "current_pixmap") else ""
             )
+            self.preview_label.setProperty("class", "PreviewEmpty")
+            self.preview_label.style().unpolish(self.preview_label)
+            self.preview_label.style().polish(self.preview_label)
+            self.metadata_label.setText("Waiting for screen capture")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -291,10 +337,10 @@ class MainWindow(QMainWindow):
 
     def start_ocr_processing(self, capture_result: CaptureResult):
         if not self.ocr_service.is_available:
-            self.ocr_status_label.setText("<b>OCR:</b> Unavailable (EasyOCR not installed)")
+            self.metadata_label.setText("OCR Unavailable")
             return
 
-        self.ocr_status_label.setText("<b>OCR:</b> Reading screen...")
+        self.metadata_label.setText("Reading screen...")
 
         self._ocr_thread = QThread()
         self._ocr_worker = OCRWorker(capture_result, self.ocr_service)
@@ -313,19 +359,14 @@ class MainWindow(QMainWindow):
         self._ocr_thread.start()
 
     def on_ocr_success(self, result: OCRResult):
-        n = len(result.regions)
-        self.ocr_status_label.setText(
-            f"<b>OCR:</b> {n} region{'s' if n != 1 else ''} detected · {result.processing_time_ms:.0f} ms"
-        )
-        self.ocr_text_edit.setPlainText(result.full_text)
-
+        self.metadata_label.setText(f"Screen context ready ({len(result.regions)} regions)")
         # Save result for orchestrator
         self._last_ocr_result = result
         self._update_ask_ai_state()
 
     def on_ocr_error(self, error_msg: str):
-        self.ocr_status_label.setText("<b>OCR:</b> Error")
-        self.ocr_text_edit.setPlainText(f"Failed to extract text:\n{error_msg}")
+        self.metadata_label.setText("Couldn’t read text from this capture.")
+        logger.error(f"OCR Error: {error_msg}")
         self._last_ocr_result = None
         self._update_ask_ai_state()
 
@@ -338,7 +379,6 @@ class MainWindow(QMainWindow):
     def on_ask_ai_clicked(self):
         question = self.text_input.toPlainText().strip()
         if not question:
-            QMessageBox.information(self, "Empty Question", "Please enter a question before clicking Ask AI.")
             return
 
         if self._ai_generating:
@@ -349,7 +389,8 @@ class MainWindow(QMainWindow):
     def _start_ai_generation(self, question: str):
         self._ai_generating = True
         self._update_ask_ai_state()
-        self.ai_status_label.setText("<b>AI:</b> Routing and analyzing locally...")
+        self.btn_ask_ai.setText("Thinking...")
+        self.ai_metadata_label.setText("")
         self.answer_text_edit.clear()
 
         self._ai_thread = QThread()
@@ -370,6 +411,7 @@ class MainWindow(QMainWindow):
 
     def on_ai_success(self, result: AIOrchestratorResult):
         self._ai_generating = False
+        self.btn_ask_ai.setText("Ask AI")
         self._update_ask_ai_state()
 
         if not result.success:
@@ -377,19 +419,22 @@ class MainWindow(QMainWindow):
             return
 
         gen_s = result.inference_time_ms / 1000.0
-        status_parts = [f"Analyzed with: {result.backend_used}"]
-        status_parts.append(f"Route: {result.route_used.name}")
-        status_parts.append(f"Time: {gen_s:.1f}s")
-        
-        self.ai_status_label.setText(f"<b>AI:</b> {' · '.join(status_parts)}")
+        self.ai_metadata_label.setText(f"Route: {result.route_used.name} • Backend: {result.backend_used} • Time: {gen_s:.1f}s")
         self.answer_text_edit.setPlainText(result.answer)
 
     def on_ai_error(self, error_msg: str):
         self._ai_generating = False
+        self.btn_ask_ai.setText("Ask AI")
         self._update_ask_ai_state()
         self._show_ai_error(error_msg)
 
     def _show_ai_error(self, message: str):
-        self.ai_status_label.setText("<b>AI:</b> Error")
-        self.answer_text_edit.setPlainText(f"Could not generate answer:\n{message}")
+        user_msg = "SnapSight couldn't generate an answer. Please try again."
+        if "model" in message.lower() and "found" in message.lower():
+            user_msg = "Local AI model not found.\nPlace the required model in the models folder and try again."
+        elif "vision" in message.lower() and "unavailable" in message.lower():
+            user_msg = "Visual understanding isn't available on this device yet.\nText-based screen understanding is still available."
+            
+        self.answer_text_edit.setPlainText(user_msg)
+        self.ai_metadata_label.setText("Error encountered.")
         logger.error(f"AI error: {message}")

@@ -279,7 +279,7 @@ def test_ai_success_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
 
     assert not window._ai_generating
     assert "SnapSight" in window.answer_text_edit.toPlainText()
-    assert "2.5s" in window.ai_status_label.text()
+    assert "2.5s" in window.ai_metadata_label.text()
 
 
 @patch("app.ui.main_window.OCRService")
@@ -295,3 +295,4 @@ def test_ai_failure_updates_ui(mock_llm_cls, mock_ocr_cls, qapp):
 
     assert not window._ai_generating
     assert "not found" in window.answer_text_edit.toPlainText().lower()
+    assert "Error encountered" in window.ai_metadata_label.text()

@@ -4,7 +4,7 @@ Privacy-first, on-device screen intelligence assistant for Windows PCs, with fut
 
 > **See your screen. Ask anything. Keep everything on-device.**
 
-Sprint 6 — Qualcomm Snapdragon NPU Runtime & Optimization
+Sprint 7 — Product Polish + UX
 
 ## Pipeline
 
@@ -49,6 +49,13 @@ User Question → AI Router → Context Selector
 - **Qualcomm OCR Backend** — isolated `QualcommOCREngine` architecturally ready to load `hrnet_w48_ocr.onnx` via ONNX Runtime + QNN Execution Provider.
 - **Graceful CPU Fallback** — explicitly falls back to EasyOCR if QNN cannot initialize or the model is missing, ensuring Intel/x86 dev environments continue to function seamlessly.
 - **Factual Benchmarking** — independent OCR benchmark tool providing transparent, verifiable latency metrics and hardware tracking without faking NPU status.
+
+### Sprint 7 — Product Polish + UX
+- **Modern Dark Theme** — unified UI styling using Qt stylesheets for a professional, trustworthy desktop application aesthetic.
+- **Card-Based Layout** — strict visual hierarchy separating *Screen Context*, *Ask AI*, and *Answer* into distinct cards.
+- **Improved Empty States & Error Handling** — user-friendly messages for missing models or failed OCR instead of raw stack traces.
+- **Keyboard Shortcuts** — added `Ctrl+Enter` to quickly submit questions and `Escape` to gracefully exit the region selector.
+- **Granular Telemetry Footer** — decoupled runtime hardware status into a compact, unobtrusive footer.
 
 ## Privacy & Local Execution
 
