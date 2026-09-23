@@ -18,6 +18,8 @@ __pycache__/
 *.safetensors
 *.bin
 models/*.onnx
+*.data
+scratch/
 
 # Generated test images (never commit screenshots or temp images)
 tests/*.png

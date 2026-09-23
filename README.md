@@ -1,10 +1,12 @@
 # SnapSight
 
-Privacy-first, on-device screen intelligence assistant for Windows PCs, with future optimization for Qualcomm Snapdragon AI PCs.
+**Private, on-device screen intelligence assistant for Windows PCs with a Qualcomm Snapdragon-aware AI architecture.**
 
 > **See your screen. Ask anything. Keep everything on-device.**
 
-Sprint 9 — Packaging, Deployment & Accessibility
+**Qualcomm Snapdragon AI Lab – Build & Present Challenge 2026**
+
+**Project status: Development complete • Qualcomm AI Hub model validation complete**
 
 ## Pipeline
 
@@ -44,11 +46,13 @@ User Question → AI Router → Context Selector
 - **Vision Abstraction** — clean `VisionEngine` interface prepared for multimodal understanding.
 - **Unavailable Fallback** — cleanly handles visual queries by explaining that no vision backend is currently installed.
 
-### Sprint 6 — Qualcomm Snapdragon NPU Runtime & Optimization
-- **Hardware-Aware Runtime Detection** — reliably detects platform, architecture, CPU vendor (Intel/AMD/Qualcomm) and device using Windows specific queries.
-- **Qualcomm OCR Backend** — isolated `QualcommOCREngine` architecturally ready to load `hrnet_w48_ocr.onnx` via ONNX Runtime + QNN Execution Provider.
-- **Graceful CPU Fallback** — explicitly falls back to EasyOCR if QNN cannot initialize or the model is missing, ensuring Intel/x86 dev environments continue to function seamlessly.
-- **Factual Benchmarking** — independent OCR benchmark tool providing transparent, verifiable latency metrics and hardware tracking without faking NPU status.
+### Sprint 6 — Qualcomm Snapdragon NPU Runtime & Validation
+- **Hardware-Aware Runtime Detection** — detects platform, architecture, CPU vendor, and device information for hardware-specific execution paths.
+- **Qualcomm OCR Runtime Path** — isolated `QualcommOCREngine` architecture prepared for `hrnet_w48_ocr.onnx` through ONNX Runtime + QNN Execution Provider.
+- **Graceful CPU Fallback** — EasyOCR CPU remains the fallback when the Qualcomm runtime/model path is unavailable.
+- **Qualcomm AI Hub Validation** — the official `HRNet-W48-OCR` model was successfully compiled, profiled, and inferred on a hosted Snapdragon X Elite CRD.
+- **Verified NPU Execution** — Qualcomm AI Hub reported **all 820 model nodes executing on the Qualcomm Hexagon HTP v73 NPU**.
+- **Measured Hosted-Device Results** — 1025.30 ms inference latency and 183.76 MB peak inference memory were recorded from SnapSight's submitted AI Hub jobs.
 
 ### Sprint 7 — Product Polish + UX
 - **Modern Dark Theme** — unified UI styling using Qt stylesheets for a professional, trustworthy desktop application aesthetic.
@@ -64,7 +68,7 @@ User Question → AI Router → Context Selector
 - **Model Reuse Verified** — regression test confirms the GGUF is loaded once and reused across all questions.
 - **Memory Measurement** — process RSS tracked via `psutil` at each pipeline stage.
 - **Reliability Tests** — repeated-operation, error-recovery, and worker lifecycle tests.
-- **Honest Qualcomm Section** — benchmark explicitly states NPU results not executed on development hardware.
+- **Separated Benchmarking** — local SnapSight CPU measurements and Qualcomm AI Hub hosted-device model validation are reported separately.
 
 ### Sprint 9 — Packaging, Deployment & Accessibility
 - **Standalone Executable** — Packaged via PyInstaller into a distributable `dist/SnapSight` directory.
@@ -74,6 +78,36 @@ User Question → AI Router → Context Selector
 - **Accessibility Enhancements** — Complete keyboard navigation with logical tab order, ARIA-style roles (`AccessibleName`), and visible focus outlines across all interactive UI controls.
 - **Release Validation** — Automated script verifies that no secrets, `.env` files, models, or private captures leak into the release bundle.
 - **Deployment Documentation** — For full packaging details, see [docs/deployment.md](docs/deployment.md).
+
+### Sprint 10 — Final Demo, Documentation & Submission Readiness
+- **Final Repository Audit** — source tree, release artifacts, secrets, and Git hygiene reviewed.
+- **Documentation** — architecture, privacy, Qualcomm validation, performance, demo, and submission documentation finalized.
+- **Qualcomm Evidence** — hosted Snapdragon X Elite CRD validation preserved with compile, profile, and inference job IDs.
+- **Submission Readiness** — final pitch deck, PDF, project description, and demo materials prepared.
+- **Security Review** — no API credentials, model weights, screenshots, or local machine secrets committed.
+
+## Qualcomm AI Hub Validation
+
+SnapSight's Qualcomm AI path was validated using the official `HRNet-W48-OCR` model through Qualcomm AI Hub's hosted Snapdragon hardware.
+
+| Parameter | Verified Result |
+|---|---|
+| Target | Snapdragon X Elite CRD |
+| OS | Windows 11 |
+| Backend | Qualcomm Hexagon HTP v73 |
+| Compute Unit | **NPU — all 820 nodes** |
+| Compile | **SUCCESS** |
+| Profile | **SUCCESS** |
+| Inference | **SUCCESS** |
+| Inference Latency | **1025.30 ms / frame** |
+| Peak Inference Memory | **183.76 MB** |
+| Input | `float32[1,3,1024,2048]` |
+| Output | `float32[1,19,256,512]` |
+| Compile Job | `jpxlx6n9p` |
+| Profile Job | `jp2re90mg` |
+| Inference Job | `j568wzz7g` |
+
+> These are results from SnapSight's submitted Qualcomm AI Hub jobs for the standalone `HRNet-W48-OCR` model. They are not Qualcomm's published reference benchmarks and are not presented as full-application Snapdragon benchmarks.
 
 ## Privacy & Local Execution
 
@@ -101,7 +135,7 @@ pip install -r requirements-ocr.txt
 pip install -r requirements-llm.txt
 
 # 5. Download the local LLM model (~2.4 GB) — see models/README.md
-# Place at: models/phi-3.5-mini-instruct.Q4_K_M.gguf
+# Place at: models/Phi-3.5-mini-instruct-Q4_K_M.gguf
 
 # 6. Run
 python -m app.main
@@ -119,7 +153,7 @@ pytest
 | Runtime | llama-cpp-python |
 | Size | ~2.4 GB |
 | RAM needed | ~3–4 GB (+ ~2 GB for EasyOCR) |
-| Expected path | `models/phi-3.5-mini-instruct.Q4_K_M.gguf` |
+| Expected path | `models/Phi-3.5-mini-instruct-Q4_K_M.gguf` |
 
 Download from [Hugging Face — bartowski/Phi-3.5-mini-instruct-GGUF](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF).
 
@@ -133,24 +167,26 @@ SnapSight will display a clear setup message if the model is missing. It **will 
 | OCR (EasyOCR, CPU) | ✅ Implemented |
 | Local LLM (llama.cpp, CPU) | ✅ Implemented |
 | AI Router | ✅ Implemented (Deterministic intent classifier) |
-| Vision Backend | 🔲 Architecture prepared, fallback unavailable state |
-| Qualcomm ONNX/QNN backend | 🔲 Architecture prepared, gracefully falls back to CPU |
-| Qualcomm/QNN hardware acceleration | 🔲 Architecture prepared for Snapdragon Windows PCs |
+| Vision Backend | ✅ Modular abstraction with unavailable fallback |
+| Qualcomm OCR Runtime Path | ✅ Architecture prepared; model validated separately on Snapdragon via AI Hub |
+| Qualcomm NPU Model Validation | ✅ **Verified on Snapdragon X Elite CRD** |
 
-> **Note:** The current performance measurements represent the CPU execution profile. The runtime architecture natively supports hardware-specific execution paths (e.g., QNN) when supported environments are detected.
+> **Qualcomm validation:** the standalone HRNet-W48-OCR model successfully executed on the Snapdragon X Elite CRD NPU through Qualcomm AI Hub, with all 820 model nodes reported on the NPU. The current SnapSight application code was not changed as part of this hosted-device validation.
 
 ## Current Limitations
 
-- **No local vision backend** — visual questions will trigger a fallback message since no local multi-modal model is installed on the current environment.
-- **Reference CPU benchmark profile** — Baseline measurements reflect CPU execution.
-- **No local LLM** without downloading the GGUF model (~2.4 GB)
-- **No voice input** — text only
+- **Visual reasoning backend** — the modular vision interface exists, but a general-purpose local multimodal reasoning backend is not currently bundled.
+- **Qualcomm OCR application integration** — the HRNet-W48-OCR model has been independently validated on Snapdragon X Elite NPU through Qualcomm AI Hub; the current `QualcommOCREngine` remains an architecture-ready integration path rather than a claimed end-to-end production text OCR implementation.
+- **Local LLM model download** — Phi-3.5-mini requires the local GGUF model (~2.4 GB) to be placed in the expected model directory.
+- **Voice input** — text input only.
 
 ## Performance
 
 SnapSight includes a built-in benchmark harness for measuring real performance on the host hardware.
 
-**Reference Benchmark Hardware**: x86-64, CPU-only (baseline execution)
+**Local SnapSight Benchmark Baseline**: x86-64 CPU execution on the development system.
+
+**Qualcomm Hosted-Device Validation**: Snapdragon X Elite CRD NPU results are documented separately in the Qualcomm AI Hub Validation section.
 
 ```bash
 python scripts/benchmark.py           # all benchmarks
@@ -165,16 +201,27 @@ python scripts/benchmark.py --json    # Machine-readable (no private content)
 
 See [`docs/performance.md`](docs/performance.md) for full methodology, cold/warm distinction, and memory measurement approach.
 
-## Planned Architecture
+## AI Architecture
 
 ```
 Screen Capture
     ↓
-OCR (EasyOCR / Qualcomm QNN fallback)
+OCR (EasyOCR CPU / Qualcomm-aware runtime path)
     ↓
 AI Orchestrator (Router + Context Selector)
     ├── Local LLM (LlamaCpp)
-    └── Vision Engine (Currently Unavailable Fallback)
+    └── Vision Engine (Modular abstraction / fallback)
     ↓
 Answer
 ```
+
+
+## Project Links
+
+- **GitHub:** https://github.com/devhitp/SnapSight
+- **Qualcomm AI Hub model:** `HRNet-W48-OCR`
+- **Challenge:** Qualcomm Snapdragon AI Lab – Build & Present Challenge 2026
+
+## Final Status
+
+SnapSight development is complete, the Windows desktop application has been packaged and audited, and the Qualcomm HRNet-W48-OCR model has been successfully validated on a hosted Snapdragon X Elite CRD NPU through Qualcomm AI Hub.
